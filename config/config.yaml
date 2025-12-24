@@ -1,0 +1,13 @@
+env: "local"
+storage_path: "./storage/storage.db"
+secret_key: "your-secret-key"
+http_server:
+  address: "localhost:8082"
+  timeout: 4s
+  idle_timeout: 60s
+connection_string:
+  host: "localhost"
+  port: 5432
+  database_name: "mypostgres" 
+  database_user: "postgres" 
+  database_password: "postgres" 
