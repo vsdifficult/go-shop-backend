@@ -7,7 +7,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func NewRouter(authService *services.AuthService, orderService *services.OrderService) *chi.Mux {
+func NewRouter(authService *services.AuthService, orderService *services.OrderService, productService *services.ProductService, transactionService *services.TransactionService, userService *services.UserService, buyerService *services.BuyerService) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Use(middleware.RequestID)
@@ -16,7 +16,10 @@ func NewRouter(authService *services.AuthService, orderService *services.OrderSe
 	router.Use(middleware.URLFormat)
 
 	authHandler := NewAuthHandler(authService)
-	orderHandler := NewOrderHandler(orderService)
+	orderHandler := NewOrderHandler(orderService, buyerService)
+	productHandler := NewProductHandler(productService)
+	transactionHandler := NewTransactionHandler(transactionService)
+	userHandler := NewUserHandler(userService)
 
 	router.Post("/register", authHandler.Register)
 	router.Post("/login", authHandler.Login)
@@ -26,6 +29,17 @@ func NewRouter(authService *services.AuthService, orderService *services.OrderSe
 		r.Post("/orders", orderHandler.CreateOrder)
 		r.Get("/orders", orderHandler.GetOrders)
 		r.Post("/cancel", orderHandler.CancelOrder)
+		r.Post("/orders/pay", orderHandler.PayOrder)
+
+		r.Get("/products", productHandler.GetProducts)
+		r.Get("/product", productHandler.GetProduct)
+		r.Post("/products", productHandler.CreateProduct)
+		r.Put("/products", productHandler.UpdateProduct)
+		r.Delete("/product", productHandler.DeleteProduct)
+
+		r.Get("/transactions", transactionHandler.GetTransactions)
+
+		r.Get("/user", userHandler.GetUser)
 	})
 
 	return router

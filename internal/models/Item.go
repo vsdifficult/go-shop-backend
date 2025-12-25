@@ -1,15 +1,11 @@
 package models
 
-import (
-	"github.com/google/uuid"
-	"gorm.io/gorm"
-)
+import "github.com/google/uuid"
 
 type Item struct {
-	gorm.Model
-	ID        uuid.UUID `gorm:"type:uuid;primary_key"`
-	OrderID   uuid.UUID `gorm:"type:uuid"`
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
+	OrderID   uuid.UUID `gorm:"type:uuid;index"`
 	ProductID uuid.UUID `gorm:"type:uuid"`
 	Quantity  int       `gorm:"not null"`
-	Price     float64   `gorm:"not null"`
+	Price     int64     `gorm:"not null"` // копейки
 }

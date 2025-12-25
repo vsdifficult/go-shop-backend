@@ -37,14 +37,20 @@ func main() {
 		log.Error(err.Error())
 	}
 
-	db.AutoMigrate(&models.User{}, &models.Order{}, &models.Item{})
+	db.AutoMigrate(&models.User{}, &models.Order{}, &models.Item{}, &models.Product{}, &models.Transaction{})
 	log.Info("db migrated")
 	userRepo := repositories.NewUserRepository(db.DB)
 	orderRepo := repositories.NewOrderRepository(db.DB)
+	productRepo := repositories.NewProductRepository(db.DB)
+	transactionRepo := repositories.NewTransactionRepository(db.DB)
 	authService := services.NewAuthService(log, userRepo, cfg.SecretKey, cfg.HTTPServer.Timeout)
 	orderService := services.NewOrderService(log, orderRepo, userRepo)
+	productService := services.NewProductService(productRepo)
+	transactionService := services.NewTransactionService(transactionRepo)
+	userService := services.NewUserService(userRepo)
+	buyerService := services.NewBuyerService(log, orderRepo, userRepo, transactionRepo)
 
-	router := routes.NewRouter(authService, orderService)
+	router := routes.NewRouter(authService, orderService, productService, transactionService, userService, buyerService)
 
 	log.Info("starting server", slog.String("address", cfg.HTTPServer.Address))
 

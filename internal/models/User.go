@@ -1,18 +1,14 @@
 package models
 
-import (
-	"github.com/google/uuid"
-	"gorm.io/gorm"
-)
+import "github.com/google/uuid"
 
 type User struct {
-	gorm.Model
-	ID           uuid.UUID `gorm:"type:uuid;primary_key"`
-	Name         string    `gorm:"name"`
-	Email        string    `gorm:"email"`
-	PasswordHash string    `gorm:"password_hash"`
-	Verified     bool      `gorm:"verified"`
-	VerifiedCode string    `gorm:"verified_code"`
+	ID           uuid.UUID `gorm:"type:uuid;primaryKey"`
+	Name         string
+	Email        string `gorm:"uniqueIndex"`
+	PasswordHash string
+	Verified     bool
+	VerifiedCode string
 }
 
 type UserCreateDto struct {

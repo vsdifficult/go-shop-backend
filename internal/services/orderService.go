@@ -1,27 +1,27 @@
 package services
 
 import (
+	"errors"
 	"fmt"
-	"goshop/internal/models"
 	"log/slog"
+
+	"goshop/internal/models"
+	"goshop/internal/repositories"
 
 	"github.com/google/uuid"
 )
 
 type OrderService struct {
 	log       *slog.Logger
-	orderRepo OrderRepository
-	userRepo  UserRepository
+	orderRepo repositories.OrderRepository
+	userRepo  repositories.UserRepository
 }
 
-type OrderRepository interface {
-	CreateOrder(order *models.Order) error
-	GetOrders(userID uuid.UUID) ([]models.Order, error)
-	GetOrder(orderID uuid.UUID) (models.Order, error)
-	IsOrderExists(orderID uuid.UUID) (bool, error)
-}
-
-func NewOrderService(log *slog.Logger, orderRepo OrderRepository, userRepo UserRepository) *OrderService {
+func NewOrderService(
+	log *slog.Logger,
+	orderRepo repositories.OrderRepository,
+	userRepo repositories.UserRepository,
+) *OrderService {
 	return &OrderService{
 		log:       log,
 		orderRepo: orderRepo,
@@ -29,52 +29,82 @@ func NewOrderService(log *slog.Logger, orderRepo OrderRepository, userRepo UserR
 	}
 }
 
-func (s *OrderService) CreateOrder(userID uuid.UUID, items []models.Item) (*models.Order, error) {
+func (s *OrderService) CreateOrder(userID uuid.UUID) (*models.Order, error) {
 	const op = "OrderService.CreateOrder"
 	log := s.log.With(slog.String("op", op))
 
-	log.Info("creating order", slog.String("userID", userID.String()))
+	if _, err := s.userRepo.GetByID(userID); err != nil {
+		log.Error("user not found", slog.Any("err", err))
+		return nil, fmt.Errorf("%s: user not found", op)
+	}
 
 	order := &models.Order{
 		UserID: userID,
-		Items:  items,
 	}
 
-	if err := s.orderRepo.CreateOrder(order); err != nil {
-		log.Error("failed to create order", slog.String("error", err.Error()))
+	if err := s.orderRepo.Create(order); err != nil {
+		log.Error("failed to create order", slog.Any("err", err))
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	log.Info("order created successfully", slog.String("orderID", order.ID.String()))
+	log.Info("order created", slog.String("orderID", order.ID.String()))
+	return order, nil
+}
+
+func (s *OrderService) AddProduct(
+	orderID uuid.UUID,
+	productID uuid.UUID,
+	quantity int,
+	price int64,
+) error {
+	const op = "OrderService.AddProduct"
+
+	if quantity <= 0 {
+		return errors.New("quantity must be positive")
+	}
+
+	if err := s.orderRepo.AddProduct(orderID, productID, quantity, price); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
+}
+
+func (s *OrderService) GetOrder(orderID uuid.UUID) (*models.Order, error) {
+	const op = "OrderService.GetOrder"
+
+	order, err := s.orderRepo.GetByID(orderID)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
 
 	return order, nil
 }
 
 func (s *OrderService) GetOrders(userID uuid.UUID) ([]models.Order, error) {
 	const op = "OrderService.GetOrders"
-	log := s.log.With(slog.String("op", op))
 
-	log.Info("getting orders", slog.String("userID", userID.String()))
-
-	orders, err := s.orderRepo.GetOrders(userID)
+	orders, err := s.orderRepo.GetOrdersByUserID(userID)
 	if err != nil {
-		log.Error("failed to get orders", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-
-	log.Info("orders retrieved successfully", slog.Int("count", len(orders)))
 
 	return orders, nil
 }
 
-func (s *OrderService) CancelOrder(orderID uuid.UUID) (bool, error) {
+func (s *OrderService) CancelOrder(orderID uuid.UUID) error {
 	const op = "OrderService.CancelOrder"
-	log := s.log.With(slog.String("op", op))
 
-	_, err := s.orderRepo.IsOrderExists(orderID)
+	order, err := s.orderRepo.GetByID(orderID)
 	if err != nil {
-		log.Error("failed to get order", slog.String("error", err.Error()))
-		return false, fmt.Errorf("%s: %w", op, err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
-	return true, nil
+
+	if order.Status != models.OrderStatusDraft {
+		return errors.New("only draft order can be canceled")
+	}
+
+	order.Status = models.OrderStatusCanceled
+	return nil
 }
+
